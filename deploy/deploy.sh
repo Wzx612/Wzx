@@ -18,7 +18,10 @@ IMAGE_TAG="${1:-${IMAGE_TAG:-latest}}"
 ENV_FILE="$ROOT/.env"
 [[ -f "$ENV_FILE" ]] && set -a && . "$ENV_FILE" && set +a
 
-COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml"
+# Monitoring (Prometheus/Grafana) is included by default. Set ENABLE_MONITORING=0
+# in the server .env to skip it on small/low-RAM hosts.
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+[[ "${ENABLE_MONITORING:-1}" == "1" ]] && COMPOSE="$COMPOSE -f docker-compose.monitoring.yml"
 APP_SERVICES=(embedding-service rag-service agent-service nginx)
 LOG() { echo -e "\033[1;34m[deploy $(date +%H:%M:%S)]\033[0m $*"; }
 

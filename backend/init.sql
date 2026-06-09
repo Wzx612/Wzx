@@ -101,12 +101,13 @@ CREATE INDEX IF NOT EXISTS idx_chunks_doc_id        ON document_chunks (document
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_doc ON knowledge_chunks (document_id);
 CREATE INDEX IF NOT EXISTS idx_image_records_user   ON image_analysis_records (user_id);
 
--- Approximate-nearest-neighbour (IVFFlat, cosine) indexes for fast retrieval.
-CREATE INDEX IF NOT EXISTS idx_chunks_embedding
-    ON document_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
-
-CREATE INDEX IF NOT EXISTS idx_knowledge_embeddings_vec
-    ON knowledge_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- NOTE: No ANN (IVFFlat/HNSW) index on the embedding columns yet.
+-- IVFFlat with lists=100 on a near-empty table is unreliable: with the default
+-- ivfflat.probes=1 a query scans a single list, so when row_count << lists it
+-- can return ZERO rows even though matches exist. pgvector falls back to an
+-- exact (sequential) cosine scan without an index, which is always correct and
+-- fast while tables are small. Add a tuned IVFFlat/HNSW index manually once the
+-- tables hold enough rows (see deploy/PRODUCTION.md).
 
 -- ============================================================================
 -- Done. Application containers find the full schema ready on startup.

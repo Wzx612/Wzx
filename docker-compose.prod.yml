@@ -92,6 +92,8 @@ services:
     security_opt:
       - no-new-privileges:true
     volumes: !reset []
-    # Gateway is fronted by the host nginx (TLS). Expose only on loopback.
+    # Gateway is fronted by the host nginx (TLS) by default (loopback bind).
+    # For IP-only / no-host-nginx setups, set GATEWAY_BIND=0.0.0.0 and
+    # GATEWAY_PORT=80 in the server .env to expose the gateway directly.
     ports: !override
-      - "127.0.0.1:${GATEWAY_PORT:-8080}:80"
+      - "${GATEWAY_BIND:-127.0.0.1}:${GATEWAY_PORT:-8080}:80"
