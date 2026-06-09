@@ -79,3 +79,23 @@ api.interceptors.response.use(
     return Promise.reject(new Error(message));
   },
 );
+
+/**
+ * fetch() wrapper that attaches the bearer access token and performs a single
+ * silent refresh + retry on 401 — for requests the axios client can't handle
+ * cleanly in the browser (multipart uploads, SSE streaming responses). The URL
+ * is used as-is (callers pass the full /api/... path).
+ */
+export async function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const build = (token: string | null): RequestInit => {
+    const headers = new Headers(init.headers);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return { ...init, headers };
+  };
+  let res = await fetch(input, build(authHooks?.getAccessToken() ?? null));
+  if (res.status === 401 && authHooks) {
+    const token = await authHooks.refresh();
+    if (token) res = await fetch(input, build(token));
+  }
+  return res;
+}

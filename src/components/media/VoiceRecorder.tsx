@@ -22,6 +22,15 @@ const WS_SUPPORTED =
   typeof window !== 'undefined' &&
   !!((window as unknown as WinSR).SpeechRecognition ?? (window as unknown as WinSR).webkitSpeechRecognition);
 
+// Microphone capture (getUserMedia) and the Web Speech API both require a
+// SECURE CONTEXT (HTTPS or localhost). Over plain HTTP on a LAN/public IP they
+// are unavailable, so we detect that up front and degrade gracefully with a
+// clear message instead of throwing misleading "recognition failed" errors.
+const STT_AVAILABLE =
+  typeof window !== 'undefined' &&
+  window.isSecureContext &&
+  (!!(typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) || WS_SUPPORTED);
+
 export default function VoiceRecorder() {
   const { lang } = useT();
   const [status,     setStatus]     = useState<RecorderStatus>('idle');
@@ -229,18 +238,19 @@ export default function VoiceRecorder() {
         }}
       >
         <button
-          onClick={canToggleStop ? stop : () => void start()}
-          disabled={transcribing}
+          onClick={!STT_AVAILABLE ? undefined : canToggleStop ? stop : () => void start()}
+          disabled={transcribing || !STT_AVAILABLE}
           aria-label={recording ? 'stop' : 'record'}
           style={{
             width: 56, height: 56, borderRadius: '50%', border: 'none',
-            cursor: transcribing ? 'default' : 'pointer',
+            cursor: transcribing || !STT_AVAILABLE ? 'not-allowed' : 'pointer',
             display: 'grid', placeItems: 'center', flexShrink: 0,
             background: recording ? 'var(--danger)' : 'var(--grad-primary)',
             boxShadow: recording
               ? '0 0 0 6px rgba(244,63,94,0.25)'
               : '0 8px 22px rgba(79,124,255,0.4)',
             transition: 'all 0.2s',
+            opacity: STT_AVAILABLE ? 1 : 0.45,
           }}
         >
           <Mic color="#fff" size={24} />
@@ -268,6 +278,25 @@ export default function VoiceRecorder() {
           </div>
         </div>
       </div>
+
+      {!STT_AVAILABLE && (
+        <div
+          style={{
+            padding: 14,
+            borderRadius: 'var(--r)',
+            background: 'rgba(245,158,11,0.08)',
+            border: '1px solid rgba(245,158,11,0.25)',
+            fontSize: 12.5,
+            color: 'var(--sub)',
+            marginBottom: 16,
+            lineHeight: 1.6,
+          }}
+        >
+          {lang === 'zh'
+            ? '⚠ 语音输入需要安全环境（HTTPS 或 localhost）。当前通过 HTTP 访问,浏览器禁止麦克风权限,语音功能暂不可用 —— 部署 HTTPS 后即可使用。'
+            : '⚠ Voice input requires a secure context (HTTPS or localhost). On plain HTTP the browser blocks microphone access; it will work once served over HTTPS.'}
+        </div>
+      )}
 
       {transcript && (
         <div

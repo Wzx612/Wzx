@@ -4,6 +4,7 @@ import AppShell from '@/components/layout/AppShell';
 import { getIcon } from '@/lib/icons';
 import { useT } from '@/lib/useT';
 import { genId } from '@/lib/id';
+import { authedFetch } from '@/services/api';
 
 /* ============================================================
    Types
@@ -209,7 +210,7 @@ export default function RAG() {
   const loadDocs = useCallback(async () => {
     setDocsLoading(true);
     try {
-      const res = await fetch('/api/rag/documents?page=1&page_size=50');
+      const res = await authedFetch('/api/rag/documents?page=1&page_size=50');
       if (res.ok) {
         const data = await res.json() as { items: DocRecord[] };
         setDocs(data.items);
@@ -251,7 +252,7 @@ export default function RAG() {
     const form = new FormData();
     form.append('file', file);
     try {
-      const res = await fetch('/api/rag/documents', { method: 'POST', body: form });
+      const res = await authedFetch('/api/rag/documents', { method: 'POST', body: form });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText })) as { detail?: string };
         throw new Error(err.detail ?? `HTTP ${res.status}`);
@@ -279,7 +280,7 @@ export default function RAG() {
 
   /* ── Delete document ────────────────────────────────────── */
   const deleteDoc = useCallback(async (id: string) => {
-    await fetch(`/api/rag/documents/${id}`, { method: 'DELETE' });
+    await authedFetch(`/api/rag/documents/${id}`, { method: 'DELETE' });
     setDocs(prev => prev.filter(d => d.id !== id));
   }, []);
 
@@ -309,7 +310,7 @@ export default function RAG() {
     setChatLoading(true);
 
     try {
-      const res = await fetch('/api/rag/query', {
+      const res = await authedFetch('/api/rag/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: userMsg.content, top_k: 5 }),
