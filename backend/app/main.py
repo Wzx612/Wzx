@@ -1,6 +1,14 @@
 import asyncio
 import logging
+import sys
 from contextlib import asynccontextmanager
+
+# On Windows, asyncpg requires the Selector event loop (the default Proactor
+# loop breaks asyncpg connections under uvicorn). No-op on Linux/macOS, where
+# the production containers run. Lets the backend run locally via `uvicorn` for
+# localhost development.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
