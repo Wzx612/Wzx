@@ -25,8 +25,10 @@ __pycache__/
 venv/
 
 # ── Models / caches ──────────────────────────────────────────────────────
+# NOTE: do NOT add a bare "models/" here — it would also ignore the Python
+# package backend/app/models/. The ML model cache lives in a Docker volume,
+# not in the repo, so only the HF download cache needs ignoring.
 .hf/
-models/
 
 # ── Logs ─────────────────────────────────────────────────────────────────
 *.log
