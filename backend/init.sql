@@ -17,9 +17,6 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'doc_status') THEN
         CREATE TYPE doc_status AS ENUM ('processing', 'ready', 'error');
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'analysis_status') THEN
-        CREATE TYPE analysis_status AS ENUM ('pending', 'done', 'error');
-    END IF;
 END$$;
 
 -- ── Legacy / OpenAI-style document pipeline (documents + document_chunks) ────
@@ -79,23 +76,6 @@ CREATE TABLE IF NOT EXISTS document_content (
     CONSTRAINT uq_document_content_doc_id UNIQUE (document_id)
 );
 
--- ── Vision analysis audit trail ─────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS image_analysis_records (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id           VARCHAR(128),
-    image_url         TEXT NOT NULL,
-    original_filename VARCHAR(512) NOT NULL,
-    file_size         INTEGER NOT NULL,
-    summary           TEXT,
-    analysis_result   JSONB,
-    token_input       INTEGER,
-    token_output      INTEGER,
-    latency_ms        INTEGER,
-    status            analysis_status NOT NULL DEFAULT 'pending',
-    error_message     TEXT,
-    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 -- ── Auth: application users (bcrypt password hashes; JWT issued at login) ─────
 CREATE TABLE IF NOT EXISTS users (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -111,7 +91,6 @@ CREATE TABLE IF NOT EXISTS users (
 -- ── Indexes ─────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_chunks_doc_id        ON document_chunks (document_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_doc ON knowledge_chunks (document_id);
-CREATE INDEX IF NOT EXISTS idx_image_records_user   ON image_analysis_records (user_id);
 CREATE INDEX IF NOT EXISTS idx_users_username       ON users (username);
 
 -- NOTE: No ANN (IVFFlat/HNSW) index on the embedding columns yet.

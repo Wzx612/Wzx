@@ -26,7 +26,7 @@ import Permissions from '@/pages/Permissions';
 import Monitoring from '@/pages/Monitoring';
 import Settings from '@/pages/Settings';
 import Capabilities from '@/pages/Capabilities';
-import ImageUnderstanding from '@/pages/ImageUnderstanding';
+import TextToImage from '@/pages/TextToImage';
 import RAG from '@/pages/RAG';
 import Files from '@/pages/Files';
 
@@ -83,7 +83,7 @@ export default function App() {
           <Route path="/permissions" element={<Permissions />} />
           <Route path="/monitoring" element={<Monitoring />} />
           <Route path="/capabilities" element={<Capabilities />} />
-          <Route path="/vision" element={<ImageUnderstanding />} />
+          <Route path="/text-to-image" element={<TextToImage />} />
           <Route path="/rag" element={<RAG />} />
           <Route path="/files" element={<Files />} />
           <Route path="/settings" element={<Settings />} />

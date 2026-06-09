@@ -9,7 +9,6 @@ from sqlalchemy import text as _sql_text
 from app.core.config import settings
 from app.core.security import get_current_user
 from app.api.auth import router as auth_router
-from app.api.vision import router as vision_router
 from app.api.rag import router as rag_router
 from app.api.files import router as files_router
 from app.api.documents import router as documents_router
@@ -19,7 +18,7 @@ from app.api.vector import router as vector_router
 from app.api.retrieval import router as retrieval_router
 from app.api.chat import router as chat_router
 from app.api.agent import router as agent_router
-from app.api.multimodal import router as multimodal_router
+from app.api.media import router as media_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -152,7 +151,6 @@ app.include_router(embeddings_router, prefix="/api/embeddings", tags=["embedding
 
 # All user-facing business endpoints require a valid access token.
 _PROTECTED = [Depends(get_current_user)]
-app.include_router(vision_router, prefix="/api/vision", tags=["vision"], dependencies=_PROTECTED)
 app.include_router(rag_router, prefix="/api/rag", tags=["rag"], dependencies=_PROTECTED)
 app.include_router(files_router, prefix="/api/files", tags=["files"], dependencies=_PROTECTED)
 app.include_router(documents_router, prefix="/api/documents", tags=["documents"], dependencies=_PROTECTED)
@@ -161,7 +159,7 @@ app.include_router(vector_router, prefix="/api/vector", tags=["vector"], depende
 app.include_router(retrieval_router, prefix="/api/retrieval", tags=["retrieval"], dependencies=_PROTECTED)
 app.include_router(chat_router, prefix="/api/rag", tags=["rag-chat"], dependencies=_PROTECTED)
 app.include_router(agent_router, prefix="/api/agent", tags=["agent"], dependencies=_PROTECTED)
-app.include_router(multimodal_router, prefix="/api/multimodal", tags=["multimodal"], dependencies=_PROTECTED)
+app.include_router(media_router, prefix="/api/media", tags=["media"], dependencies=_PROTECTED)
 
 
 @app.get("/health", tags=["infra"])

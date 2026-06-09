@@ -15,7 +15,11 @@ import { wait } from '@/lib/format';
      4. Mock fallback
    ============================================================ */
 
-export async function createMediaJob(kind: MediaKind, prompt: string): Promise<MediaJob> {
+export async function createMediaJob(
+  kind: MediaKind,
+  prompt: string,
+  size?: string,
+): Promise<MediaJob> {
   const job: MediaJob = {
     id:        `media-${Date.now()}`,
     kind,
@@ -26,7 +30,7 @@ export async function createMediaJob(kind: MediaKind, prompt: string): Promise<M
     createdAt: Date.now(),
   };
   if (!USE_MOCK) {
-    const { data } = await api.post<{ id: string }>('/media/generate', { kind, prompt });
+    const { data } = await api.post<{ id: string }>('/media/generate', { kind, prompt, size });
     return { ...job, id: data.id, status: 'generating' };
   }
   return job;
@@ -58,10 +62,13 @@ export async function runMediaJob(
 ): Promise<MediaJob> {
   if (!USE_MOCK) {
     for (;;) {
-      const { data } = await api.get<MediaJob>(`/media/${job.id}`);
-      onProgress(data);
-      if (data.status === 'done' || data.status === 'error') return data;
-      await wait(800);
+      const { data } = await api.get<Partial<MediaJob>>(`/media/${job.id}`);
+      // Merge server status/progress/url onto the local job (which keeps the
+      // prompt, kind, hue, createdAt the stateless backend doesn't track).
+      const merged: MediaJob = { ...job, ...data };
+      onProgress(merged);
+      if (merged.status === 'done' || merged.status === 'error') return merged;
+      await wait(1500);
     }
   }
 

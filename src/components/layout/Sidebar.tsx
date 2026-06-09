@@ -33,7 +33,7 @@ const NAV: NavGroup[] = [
       { to: '/investment', icon: 'invest', labelKey: 'nav.investment' },
       { to: '/mortgage', icon: 'bank', labelKey: 'nav.mortgage' },
       { to: '/report', icon: 'sparkle', labelKey: 'nav.report' },
-      { to: '/vision', icon: 'vision', labelKey: 'nav.vision' },
+      { to: '/text-to-image', icon: 'image', labelKey: 'nav.text2img' },
       { to: '/rag', icon: 'layers', labelKey: 'nav.rag' },
       { to: '/knowledge', icon: 'book', labelKey: 'nav.knowledge' },
       { to: '/files', icon: 'folder', labelKey: 'nav.files' },

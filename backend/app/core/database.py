@@ -34,7 +34,7 @@ async def get_db():
 
 async def create_all_tables():
     async with engine.begin() as conn:
-        from app.models import image_analysis, document, knowledge_document, document_content, knowledge_chunk, user  # noqa: F401 — register models
+        from app.models import document, knowledge_document, document_content, knowledge_chunk, user  # noqa: F401 — register models
 
         # Enable pgvector extension
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
