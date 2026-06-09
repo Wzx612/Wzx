@@ -132,13 +132,17 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          command_timeout: 20m
+          command_timeout: 25m
           script: |
             set -euo pipefail
             cd /opt/atlas
-            # Authenticate to GHCR for image pulls (read:packages PAT).
-            echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ghcr.io -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
-            export REGISTRY_IMAGE="${{ env.BACKEND_IMAGE }}"
-            export GATEWAY_IMAGE="${{ env.GATEWAY_IMAGE }}"
-            export IMAGE_TAG="sha-${{ github.sha }}"
-            bash deploy/deploy.sh "$IMAGE_TAG"
+            # Sync compose files / deploy scripts / init.sql to this exact commit.
+            # /opt/atlas/.env and backend/.env are gitignored, so they are NOT
+            # touched — they hold the server's China-mirror image URLs
+            # (ghcr.nju.edu.cn/...), HF_ENDPOINT, and secrets.
+            git fetch --depth 1 -q origin "${{ github.sha }}"
+            git checkout -f -q FETCH_HEAD
+            # Image registry + tag come from /opt/atlas/.env (REGISTRY_IMAGE /
+            # GATEWAY_IMAGE point at the GHCR mirror; packages are public, so no
+            # docker login is required). deploy.sh pins IMAGE_TAG in .env.
+            bash deploy/deploy.sh "sha-${{ github.sha }}"
