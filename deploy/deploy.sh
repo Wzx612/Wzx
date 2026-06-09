@@ -14,9 +14,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-IMAGE_TAG="${1:-${IMAGE_TAG:-latest}}"
 ENV_FILE="$ROOT/.env"
+# Source server config FIRST; then resolve the desired tag so the CI-passed
+# argument ($1) overrides the IMAGE_TAG already pinned in .env. (If we resolved
+# $1 before sourcing, the .env IMAGE_TAG would clobber it and every deploy would
+# just redeploy whatever was pinned — e.g. :latest — ignoring the requested sha.)
 [[ -f "$ENV_FILE" ]] && set -a && . "$ENV_FILE" && set +a
+IMAGE_TAG="${1:-${IMAGE_TAG:-latest}}"
 
 # Monitoring (Prometheus/Grafana) is included by default. Set ENABLE_MONITORING=0
 # in the server .env to skip it on small/low-RAM hosts.
