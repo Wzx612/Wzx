@@ -254,13 +254,12 @@ export interface AuthTokens {
 
 export interface AuthUser {
   id: string;
+  username: string;
   name: string;
-  phone: string;
   role: string;
+  /** single-character avatar seed (first char of name) */
   avatar: string;
 }
-
-export type SsoProvider = 'google' | 'feishu' | 'wecom' | 'microsoft';
 
 /* ---------- Media generation (text→image, text→video) ---------- */
 

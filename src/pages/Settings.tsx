@@ -51,10 +51,10 @@ export default function Settings() {
   const avatarLetter  = authUser?.avatar ?? authUser?.name?.charAt(0) ?? '用';
   const fullName      = authUser?.name   ?? '陈思远';
   const displayName   = authUser ? authUser.name : 'Siyuan Chen';
-  const phone         = authUser?.phone  ?? '+86 138 0000 0000';
+  const account       = authUser?.username ?? 'admin';
   const role          = authUser?.role   ?? (lang === 'zh' ? '企业管理员' : 'Enterprise Admin');
-  /* AuthUser has no email field (phone-login system); derive a display value. */
-  const email         = authUser ? `${authUser.id}@atlas.ai` : 'chen@atlas.ai';
+  /* AuthUser has no email field; derive a display value from the username. */
+  const email         = authUser ? `${authUser.username}@atlas.ai` : 'chen@atlas.ai';
 
   return (
     <AppShell title={{ en: 'Settings', zh: '设置中心' }} crumb="atlas / operations / settings">
@@ -100,7 +100,7 @@ export default function Settings() {
               </div>
               <div className="grid-base grid-2">
                 <Input label={{ en: 'Email', zh: '邮箱' }} value={email} />
-                <Input label={{ en: 'Phone', zh: '手机' }} value={phone} />
+                <Input label={{ en: 'Account', zh: '账号' }} value={account} />
               </div>
               <button className="btn btn-primary" style={{ marginTop: 18 }}>{lang === 'zh' ? '保存资料' : 'Save profile'}</button>
             </div>

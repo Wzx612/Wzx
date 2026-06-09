@@ -2,11 +2,13 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text as _sql_text
 
 from app.core.config import settings
+from app.core.security import get_current_user
+from app.api.auth import router as auth_router
 from app.api.vision import router as vision_router
 from app.api.rag import router as rag_router
 from app.api.files import router as files_router
@@ -48,7 +50,54 @@ async def lifespan(app: FastAPI):
                 settings.SERVICE_NAME, attempt, exc,
             )
             await asyncio.sleep(2)
+
+    await _seed_admin(engine)
     yield
+
+
+async def _seed_admin(engine) -> None:
+    """Ensure the users table exists and a bootstrap admin is present.
+
+    Idempotent and race-safe (ON CONFLICT) so it is harmless when run by all
+    three service replicas. Skipped unless ADMIN_PASSWORD is configured.
+    init.sql owns the canonical schema; the CREATE TABLE here is a safety-net so
+    auth works even on a pre-existing DB volume where init.sql won't re-run.
+    """
+    if not settings.ADMIN_PASSWORD:
+        return
+    log = logging.getLogger(__name__)
+    try:
+        from app.core.security import hash_password
+
+        async with engine.begin() as conn:
+            await conn.execute(_sql_text("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    username      VARCHAR(64)  UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    name          VARCHAR(128) NOT NULL,
+                    role          VARCHAR(64)  NOT NULL DEFAULT 'user',
+                    is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
+                    created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                    last_login_at TIMESTAMPTZ
+                )
+            """))
+            await conn.execute(
+                _sql_text("""
+                    INSERT INTO users (username, password_hash, name, role)
+                    VALUES (:u, :p, :n, 'admin')
+                    ON CONFLICT (username) DO NOTHING
+                """),
+                {
+                    "u": settings.ADMIN_USERNAME,
+                    "p": hash_password(settings.ADMIN_PASSWORD),
+                    "n": settings.ADMIN_NAME,
+                },
+            )
+        log.info("[%s] auth: bootstrap admin ensured (username=%s)",
+                 settings.SERVICE_NAME, settings.ADMIN_USERNAME)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("[%s] auth: admin seed skipped: %s", settings.SERVICE_NAME, exc)
 
 
 app = FastAPI(
@@ -88,17 +137,25 @@ if settings.METRICS_ENABLED:
     except Exception as exc:  # pragma: no cover - optional dependency
         logging.getLogger(__name__).warning("metrics disabled: %s", exc)
 
-app.include_router(vision_router, prefix="/api/vision", tags=["vision"])
-app.include_router(rag_router, prefix="/api/rag", tags=["rag"])
-app.include_router(files_router, prefix="/api/files", tags=["files"])
-app.include_router(documents_router, prefix="/api/documents", tags=["documents"])
-app.include_router(chunks_router, prefix="/api/chunks", tags=["chunks"])
+# Auth endpoints are PUBLIC (login/refresh/logout); /auth/me self-protects.
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+
+# The embedding service is called server-to-server by rag/agent (via
+# EMBEDDING_SERVICE_URL) WITHOUT a user token, so it stays ungated.
 app.include_router(embeddings_router, prefix="/api/embeddings", tags=["embeddings"])
-app.include_router(vector_router, prefix="/api/vector", tags=["vector"])
-app.include_router(retrieval_router, prefix="/api/retrieval", tags=["retrieval"])
-app.include_router(chat_router, prefix="/api/rag", tags=["rag-chat"])
-app.include_router(agent_router, prefix="/api/agent", tags=["agent"])
-app.include_router(multimodal_router, prefix="/api/multimodal", tags=["multimodal"])
+
+# All user-facing business endpoints require a valid access token.
+_PROTECTED = [Depends(get_current_user)]
+app.include_router(vision_router, prefix="/api/vision", tags=["vision"], dependencies=_PROTECTED)
+app.include_router(rag_router, prefix="/api/rag", tags=["rag"], dependencies=_PROTECTED)
+app.include_router(files_router, prefix="/api/files", tags=["files"], dependencies=_PROTECTED)
+app.include_router(documents_router, prefix="/api/documents", tags=["documents"], dependencies=_PROTECTED)
+app.include_router(chunks_router, prefix="/api/chunks", tags=["chunks"], dependencies=_PROTECTED)
+app.include_router(vector_router, prefix="/api/vector", tags=["vector"], dependencies=_PROTECTED)
+app.include_router(retrieval_router, prefix="/api/retrieval", tags=["retrieval"], dependencies=_PROTECTED)
+app.include_router(chat_router, prefix="/api/rag", tags=["rag-chat"], dependencies=_PROTECTED)
+app.include_router(agent_router, prefix="/api/agent", tags=["agent"], dependencies=_PROTECTED)
+app.include_router(multimodal_router, prefix="/api/multimodal", tags=["multimodal"], dependencies=_PROTECTED)
 
 
 @app.get("/health", tags=["infra"])

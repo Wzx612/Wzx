@@ -96,10 +96,23 @@ CREATE TABLE IF NOT EXISTS image_analysis_records (
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ── Auth: application users (bcrypt password hashes; JWT issued at login) ─────
+CREATE TABLE IF NOT EXISTS users (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username      VARCHAR(64)  UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    name          VARCHAR(128) NOT NULL,
+    role          VARCHAR(64)  NOT NULL DEFAULT 'user',
+    is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    last_login_at TIMESTAMPTZ
+);
+
 -- ── Indexes ─────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_chunks_doc_id        ON document_chunks (document_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_doc ON knowledge_chunks (document_id);
 CREATE INDEX IF NOT EXISTS idx_image_records_user   ON image_analysis_records (user_id);
+CREATE INDEX IF NOT EXISTS idx_users_username       ON users (username);
 
 -- NOTE: No ANN (IVFFlat/HNSW) index on the embedding columns yet.
 -- IVFFlat with lists=100 on a near-empty table is unreliable: with the default

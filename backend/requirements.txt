@@ -19,3 +19,5 @@ langgraph>=0.2.0
 sentence-transformers>=2.2.0
 redis>=5.0.0
 prometheus-fastapi-instrumentator>=7.0.0
+PyJWT>=2.9.0
+bcrypt>=4.2.0

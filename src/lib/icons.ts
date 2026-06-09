@@ -72,6 +72,7 @@ import {
   FileCode2,
   Table2,
   Presentation,
+  LogOut,
 } from 'lucide-react';
 
 /* ============================================================
@@ -154,6 +155,7 @@ export const ICONS: Record<string, LucideIcon> = {
   'file-code': FileCode2,
   table: Table2,
   slides: Presentation,
+  logout: LogOut,
 };
 
 export function getIcon(name: string): LucideIcon {

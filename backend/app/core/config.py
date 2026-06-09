@@ -26,6 +26,21 @@ class Settings(BaseSettings):
     REDIS_URL: str = ""
     EMBEDDING_CACHE_TTL: int = 86400  # seconds
 
+    # ── Auth (JWT dual-token + bcrypt) ────────────────────────────────────────
+    # HS256 signing secret. MUST be overridden in production (set JWT_SECRET in
+    # the server's backend/.env to a long random string). Tokens are otherwise
+    # forgeable. Access tokens are short-lived; refresh tokens are long-lived and
+    # revocable via Redis (jti allow-list).
+    JWT_SECRET: str = "dev-insecure-change-me"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_TTL: int = 900       # seconds (15 min)
+    REFRESH_TOKEN_TTL: int = 604800   # seconds (7 days)
+    # Bootstrap admin: seeded once on startup if the users table has no such user
+    # AND ADMIN_PASSWORD is non-empty. Leave ADMIN_PASSWORD empty to skip seeding.
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = ""
+    ADMIN_NAME: str = "管理员"
+
     # ── Production tuning / observability ─────────────────────────────────────
     # Comma-separated extra CORS origins, e.g. "https://www.example.com,https://example.com"
     ALLOWED_ORIGINS: str = ""

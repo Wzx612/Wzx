@@ -6,7 +6,6 @@ import VirtualList from '@/components/virtual/VirtualList';
 import ThreeScene from '@/components/three/ThreeScene';
 import MediaGenerator from '@/components/media/MediaGenerator';
 import VoiceRecorder from '@/components/media/VoiceRecorder';
-import PhoneLogin from '@/components/auth/PhoneLogin';
 import { useT } from '@/lib/useT';
 import { fmtCny, fmtUnitPrice } from '@/lib/format';
 import { generateListings, type ListingRow } from '@/mock/properties';
@@ -28,8 +27,8 @@ export default function Capabilities() {
       <PageHead
         title={{ en: 'Capability Center', zh: '能力中心' }}
         desc={{
-          en: 'Production-grade frontend building blocks powering the platform — chunked upload, virtual scrolling, 3D, multimodal generation, voice, and dual-token auth.',
-          zh: '支撑平台的生产级前端能力 —— 分片上传、虚拟滚动、3D、多模态生成、语音与双 Token 鉴权。',
+          en: 'Production-grade frontend building blocks powering the platform — chunked upload, virtual scrolling, 3D, multimodal generation, and voice.',
+          zh: '支撑平台的生产级前端能力 —— 分片上传、虚拟滚动、3D、多模态生成与语音。',
         }}
       />
 
@@ -43,10 +42,9 @@ export default function Capabilities() {
         <ThreeScene height={360} />
       </div>
 
-      {/* upload + auth */}
-      <div className="grid-base grid-2" style={{ marginBottom: 32 }}>
+      {/* chunked upload */}
+      <div style={{ marginBottom: 32 }}>
         <ChunkedUploader />
-        <PhoneLogin />
       </div>
 
       {/* virtual list */}
@@ -134,8 +132,8 @@ export default function Capabilities() {
               { en: 'Text→Image / Text→Video', zh: '文生图 / 问生视频', on: true },
               { en: 'Speech→Text + realtime voice', zh: '语音转文字 + 实时对话', on: true },
               { en: 'Dual-token + silent refresh', zh: '双 Token + 静默刷新', on: true },
-              { en: 'SSO (Google / 飞书 / 企业微信)', zh: 'SSO(Google / 飞书 / 企业微信)', on: true },
-              { en: 'Phone + SMS OTP login', zh: '手机号验证码登录', on: true },
+              { en: 'JWT single sign-on (SSO)', zh: 'JWT 单点登录(SSO)', on: true },
+              { en: 'Username/password + route guard', zh: '账号密码登录 + 路由守卫', on: true },
               { en: 'i18n + theme switch', zh: '国际化 + 主题切换', on: true },
               { en: 'RBAC button-level control', zh: 'RBAC 按钮级权限', on: true },
               { en: 'WebSocket live monitoring', zh: 'WebSocket 实时监控', on: true },
