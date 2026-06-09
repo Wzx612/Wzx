@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppShell from '@/components/layout/AppShell';
 import { getIcon } from '@/lib/icons';
 import { useT } from '@/lib/useT';
+import { genId } from '@/lib/id';
 
 /* ============================================================
    Types
@@ -289,13 +290,13 @@ export default function RAG() {
     if (!query.trim() || chatLoading) return;
 
     const userMsg: ChatMsg = {
-      id: crypto.randomUUID(),
+      id: genId(),
       role: 'user',
       content: query.trim(),
       agents: [], sources: [], streaming: false,
     };
 
-    const assistantId = crypto.randomUUID();
+    const assistantId = genId();
     const assistantMsg: ChatMsg = {
       id: assistantId,
       role: 'assistant',
