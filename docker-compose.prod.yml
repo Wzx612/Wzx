@@ -1,0 +1,97 @@
+# ============================================================================
+# Atlas — PRODUCTION overrides
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Differences vs the base (dev) compose:
+#   • App services run PRE-BUILT images pulled from the registry (no on-host build)
+#   • restart: always + graceful stop  → auto-recovery + zero-drop rolling restart
+#   • json-file logging with rotation   → bounded disk usage
+#   • gateway bound to 127.0.0.1 only   → host nginx terminates TLS in front
+#   • security_opt no-new-privileges    → hardened containers
+#
+# REGISTRY_IMAGE / IMAGE_TAG come from .env (see .env.prod.example). CI sets them.
+# ============================================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-prod-app: &prod-app
+  image: ${REGISTRY_IMAGE:-ghcr.io/owner/atlas-backend}:${IMAGE_TAG:-latest}
+  pull_policy: always
+  restart: always
+  stop_grace_period: 30s
+  security_opt:
+    - no-new-privileges:true
+  logging: *default-logging
+  environment:
+    ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    METRICS_ENABLED: "true"
+    DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+    DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-20}
+
+services:
+  postgres:
+    restart: always
+    logging: *default-logging
+    # Not published to the host in prod — only reachable on atlas-net.
+    ports: !reset []
+
+  redis:
+    restart: always
+    logging: *default-logging
+    ports: !reset []
+
+  minio:
+    restart: always
+    logging: *default-logging
+    # Console stays on localhost only; API not published (proxied internally).
+    ports: !override
+      - "127.0.0.1:9001:9001"
+
+  embedding-service:
+    <<: *prod-app
+    environment:
+      # merge prod-app env + role specifics (compose deep-merges mappings)
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      METRICS_ENABLED: "true"
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-20}
+      UVICORN_WORKERS: "1"          # model host: single worker (memory)
+
+  rag-service:
+    <<: *prod-app
+    environment:
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      METRICS_ENABLED: "true"
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-20}
+      UVICORN_WORKERS: ${RAG_WORKERS:-2}
+
+  agent-service:
+    <<: *prod-app
+    environment:
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      METRICS_ENABLED: "true"
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-20}
+      UVICORN_WORKERS: ${AGENT_WORKERS:-2}
+
+  nginx:
+    # Immutable gateway image (SPA + nginx.conf baked in CI) — no host mounts.
+    image: ${GATEWAY_IMAGE:-ghcr.io/owner/atlas-gateway}:${IMAGE_TAG:-latest}
+    pull_policy: always
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: always
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    volumes: !reset []
+    # Gateway is fronted by the host nginx (TLS). Expose only on loopback.
+    ports: !override
+      - "127.0.0.1:${GATEWAY_PORT:-8080}:80"

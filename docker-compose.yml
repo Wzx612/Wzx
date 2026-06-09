@@ -1,0 +1,194 @@
+# ============================================================================
+# Atlas — enterprise multimodal RAG stack
+#
+#   docker compose up -d
+#
+# Brings up, in order, with health gating:
+#   postgres (pgvector)  → init.sql runs: pgvector extension + all tables + indexes
+#   redis                → query-embedding cache
+#   minio + minio-init   → object storage + automatic bucket creation
+#   embedding-service    → loads the BGE model ONCE, serves /api/embeddings/embed
+#   rag-service          → upload / PDF parse / chunk / retrieval / DeepSeek QA
+#   agent-service        → Knowledge Agent (LangGraph) + multimodal (Qwen-VL)
+#   nginx                → API gateway (path routing) + static frontend
+#
+# Secrets (DASHSCOPE_API_KEY, DEEPSEEK_API_KEY, …) are read from ./backend/.env.
+# Infrastructure credentials default sensibly and can be overridden via ./.env
+# (see .env.example).
+# ============================================================================
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-atlas}
+  REDIS_URL: redis://redis:6379/0
+  MINIO_ENDPOINT: minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+  MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  MINIO_BUCKET: ${MINIO_BUCKET:-atlas-images}
+  MINIO_SECURE: "false"
+  HF_HOME: /models
+
+x-app-build: &app-build
+  context: ./backend
+  dockerfile: Dockerfile
+
+services:
+  # ── Data layer ─────────────────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: atlas_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-atlas}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Auto-runs ONCE on a fresh data volume: extension + schema + indexes.
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-atlas}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [atlas-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: atlas_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [atlas-net]
+
+  minio:
+    image: minio/minio:latest
+    container_name: atlas_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [atlas-net]
+
+  # One-shot: waits for MinIO, then creates the bucket. Exits 0 when done.
+  minio-init:
+    image: minio/mc:latest
+    container_name: atlas_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-atlas-images}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          echo "waiting for minio..."; sleep 2;
+        done
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        mc anonymous set download "local/$$MINIO_BUCKET" || true
+        echo "MinIO bucket '$$MINIO_BUCKET' ready."
+    restart: "no"
+    networks: [atlas-net]
+
+  # ── Application layer (one image, three roles) ──────────────────────────────
+  embedding-service:
+    build: *app-build
+    image: atlas-backend:local
+    container_name: atlas_embedding
+    restart: unless-stopped
+    env_file: [./backend/.env]
+    environment:
+      <<: *app-env
+      SERVICE_NAME: embedding-service
+      # NOTE: no EMBEDDING_SERVICE_URL here — this IS the model host.
+    volumes:
+      - model_cache:/models          # BGE downloaded once, persisted here
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    networks: [atlas-net]
+
+  rag-service:
+    build: *app-build
+    image: atlas-backend:local
+    container_name: atlas_rag
+    restart: unless-stopped
+    env_file: [./backend/.env]
+    environment:
+      <<: *app-env
+      SERVICE_NAME: rag-service
+      EMBEDDING_SERVICE_URL: http://embedding-service:8000
+    depends_on:
+      postgres:          { condition: service_healthy }
+      redis:             { condition: service_healthy }
+      minio:             { condition: service_healthy }
+      embedding-service: { condition: service_healthy }
+    networks: [atlas-net]
+
+  agent-service:
+    build: *app-build
+    image: atlas-backend:local
+    container_name: atlas_agent
+    restart: unless-stopped
+    env_file: [./backend/.env]
+    environment:
+      <<: *app-env
+      SERVICE_NAME: agent-service
+      EMBEDDING_SERVICE_URL: http://embedding-service:8000
+    depends_on:
+      postgres:          { condition: service_healthy }
+      redis:             { condition: service_healthy }
+      minio:             { condition: service_healthy }
+      embedding-service: { condition: service_healthy }
+    networks: [atlas-net]
+
+  # ── Edge layer ──────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: atlas_nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./dist:/usr/share/nginx/html:ro     # prebuilt frontend (npm run build)
+    depends_on:
+      embedding-service: { condition: service_healthy }
+      rag-service:       { condition: service_healthy }
+      agent-service:     { condition: service_healthy }
+    networks: [atlas-net]
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  model_cache:
+
+networks:
+  atlas-net:
+    driver: bridge

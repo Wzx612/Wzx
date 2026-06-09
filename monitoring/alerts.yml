@@ -1,0 +1,50 @@
+# Prometheus alerting rules for the Atlas stack.
+groups:
+  - name: atlas-host
+    rules:
+      - alert: HostHighCPU
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}"
+          description: "CPU >85% for 5m."
+
+      - alert: HostHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "High memory on {{ $labels.instance }}"
+
+      - alert: HostDiskAlmostFull
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 85
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Disk >85% full on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+
+  - name: atlas-containers
+    rules:
+      - alert: ContainerDown
+        expr: time() - container_last_seen{name=~"atlas_.+"} > 60
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "Container {{ $labels.name }} is down"
+
+  - name: atlas-app
+    rules:
+      - alert: AppTargetDown
+        expr: up{job="atlas-app"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "App service {{ $labels.instance }} unreachable"
+
+      - alert: AppHigh5xx
+        expr: sum by (instance) (rate(http_requests_total{status="5xx"}[5m])) > 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Elevated 5xx on {{ $labels.instance }}"

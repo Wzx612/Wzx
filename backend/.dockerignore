@@ -1,0 +1,11 @@
+# Keep the image lean and free of secrets/caches.
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+tests/
+*.md

@@ -1,0 +1,32 @@
+# ── Node / frontend ──────────────────────────────────────────────────────
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.tsbuildinfo
+
+# ── Secrets ──────────────────────────────────────────────────────────────
+# Never commit real env files. Example/template files ARE tracked.
+.env
+.env.*
+.env.prod
+!.env.example
+!.env.prod.example
+
+# ── Python / backend ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# ── Models / caches ──────────────────────────────────────────────────────
+.hf/
+models/
+
+# ── Logs ─────────────────────────────────────────────────────────────────
+*.log

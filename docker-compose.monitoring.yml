@@ -1,0 +1,108 @@
+# ============================================================================
+# Atlas — monitoring stack (Prometheus + Grafana + exporters)
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#                  -f docker-compose.monitoring.yml up -d
+#
+# Scrapes: host (node-exporter), containers (cAdvisor), Postgres, Redis, and the
+# three FastAPI services' /metrics endpoints. Grafana is provisioned with the
+# Prometheus datasource + a starter Atlas dashboard.
+#
+# UIs bind to loopback only — reach them via SSH tunnel or the host nginx.
+# ============================================================================
+
+x-logging: &mon-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: atlas_prometheus
+    restart: always
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    logging: *mon-logging
+    networks: [atlas-net]
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: atlas_grafana
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on: [prometheus]
+    logging: *mon-logging
+    networks: [atlas-net]
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: atlas_node_exporter
+    restart: always
+    command:
+      - --path.rootfs=/host
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    logging: *mon-logging
+    networks: [atlas-net]
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: atlas_cadvisor
+    restart: always
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    logging: *mon-logging
+    networks: [atlas-net]
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: atlas_pg_exporter
+    restart: always
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-atlas}?sslmode=disable"
+    depends_on: [postgres]
+    logging: *mon-logging
+    networks: [atlas-net]
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: atlas_redis_exporter
+    restart: always
+    command: ["--redis.addr=redis://redis:6379"]
+    depends_on: [redis]
+    logging: *mon-logging
+    networks: [atlas-net]
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  atlas-net:
+    external: false
