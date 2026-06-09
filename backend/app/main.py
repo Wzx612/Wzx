@@ -82,11 +82,17 @@ async def _seed_admin(engine) -> None:
                     last_login_at TIMESTAMPTZ
                 )
             """))
+            # Upsert: the bootstrap admin's password tracks ADMIN_PASSWORD, so
+            # changing it in the server .env and redeploying updates the account
+            # (the password is config-managed, not hand-edited in the DB).
             await conn.execute(
                 _sql_text("""
                     INSERT INTO users (username, password_hash, name, role)
                     VALUES (:u, :p, :n, 'admin')
-                    ON CONFLICT (username) DO NOTHING
+                    ON CONFLICT (username) DO UPDATE
+                        SET password_hash = EXCLUDED.password_hash,
+                            name = EXCLUDED.name,
+                            is_active = TRUE
                 """),
                 {
                     "u": settings.ADMIN_USERNAME,
