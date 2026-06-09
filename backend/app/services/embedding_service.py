@@ -1,4 +1,4 @@
-"""EmbeddingService — BGE Large Chinese (bge-large-zh-v1.5, dim=1024).
+"""EmbeddingService — BGE Small Chinese (bge-small-zh-v1.5, dim=512).
 
 Batch processing with exponential-backoff retry.
 Model is loaded once per process and cached as a class variable.
@@ -8,7 +8,7 @@ Topology-aware:
     embedding-service container and by single-process dev / tests.
   - Remote mode (settings.EMBEDDING_SERVICE_URL set): never loads the model;
     proxies all embedding work to the embedding-service over HTTP. Used by
-    rag-service and agent-service so the 1.3 GB model loads only once.
+    rag-service and agent-service so the model loads only once.
 
 Query embeddings are optionally cached in Redis (fail-open).
 """
@@ -75,11 +75,11 @@ def _encode_sync(
 class EmbeddingService:
     """Stateless embedding service backed by BGE Large Chinese."""
 
-    MODEL_NAME = "BAAI/bge-large-zh-v1.5"
+    MODEL_NAME = "BAAI/bge-small-zh-v1.5"
     BATCH_SIZE = 32
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 1.0  # seconds; doubles each attempt
-    EMBEDDING_DIM = 1024
+    EMBEDDING_DIM = 512
 
     _model: SentenceTransformer | None = None
     _lock: asyncio.Lock | None = None
@@ -116,7 +116,7 @@ class EmbeddingService:
 
     @classmethod
     async def generate_embedding(cls, text: str) -> list[float]:
-        """Embed a single text string. Returns a 1024-dim unit vector.
+        """Embed a single text string. Returns a 512-dim unit vector.
 
         This is the query-embedding path (retrieval). Results are cached in
         Redis when REDIS_URL is configured — query embeddings are deterministic
@@ -134,7 +134,7 @@ class EmbeddingService:
     async def generate_embeddings(cls, texts: list[str]) -> list[list[float]]:
         """Embed a list of texts in batches with retry.
 
-        Returns one 1024-dim unit vector per input text.
+        Returns one 512-dim unit vector per input text.
         In remote mode (EMBEDDING_SERVICE_URL set) this proxies to the
         embedding-service; otherwise it runs the local BGE model.
         Raises RuntimeError if all retry attempts fail.

@@ -67,13 +67,13 @@ async def create_all_tables():
             ON document_chunks (document_id)
         """))
 
-        # BGE embeddings table (dim=1024) — no vector index here;
+        # BGE embeddings table (dim=512) — no vector index here;
         # add ivfflat/hnsw manually once the table has sufficient rows.
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS knowledge_embeddings (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 chunk_id UUID NOT NULL UNIQUE
                     REFERENCES knowledge_chunks(id) ON DELETE CASCADE,
-                embedding vector(1024) NOT NULL
+                embedding vector(512) NOT NULL
             )
         """))

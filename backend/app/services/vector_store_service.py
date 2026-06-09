@@ -1,4 +1,4 @@
-"""VectorStoreService — pgvector operations over knowledge_embeddings (BGE 1024-dim).
+"""VectorStoreService — pgvector operations over knowledge_embeddings (BGE 512-dim).
 
 Three concerns:
   - write   : delegate to EmbeddingService, which already owns the INSERT logic

@@ -22,9 +22,10 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.embedding_service import EmbeddingService
 from app.services.vector_store_service import VectorStoreService
 
-DIM = 1024
+DIM = EmbeddingService.EMBEDDING_DIM
 
 
 # ── Pure helpers ──────────────────────────────────────────────────────────────

@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ── Knowledge-base pipeline (BGE, dim=1024) — the verified RAG path ──────────
+-- ── Knowledge-base pipeline (BGE, dim=512) — the verified RAG path ──────────
 CREATE TABLE IF NOT EXISTS knowledge_documents (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     file_name  VARCHAR(500)  NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
 CREATE TABLE IF NOT EXISTS knowledge_embeddings (
     id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     chunk_id  UUID NOT NULL UNIQUE REFERENCES knowledge_chunks(id) ON DELETE CASCADE,
-    embedding vector(1024) NOT NULL
+    embedding vector(512) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS document_content (

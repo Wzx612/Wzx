@@ -52,7 +52,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.hf
-          key: hf-bge-large-zh-v1.5
+          key: hf-bge-small-zh-v1.5
 
       - name: Install dependencies (CPU torch + test stack)
         working-directory: backend
