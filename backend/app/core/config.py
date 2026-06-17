@@ -4,6 +4,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     DASHSCOPE_API_KEY: str
     DEEPSEEK_API_KEY: str = ""
+
+    # ── Multi-provider chat proxy (/api/chat/stream) ─────────────────────────
+    # Server-side provider keys so the frontend never ships them in the bundle.
+    # Each is optional; a request for a provider with an empty key yields a clean
+    # error event instead of calling out. DeepSeek reuses DEEPSEEK_API_KEY above.
+    OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    ANTHROPIC_API_KEY: str = ""
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/atlas"
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"

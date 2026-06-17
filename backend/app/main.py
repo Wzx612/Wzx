@@ -25,6 +25,7 @@ from app.api.embeddings import router as embeddings_router
 from app.api.vector import router as vector_router
 from app.api.retrieval import router as retrieval_router
 from app.api.chat import router as chat_router
+from app.api.chat_stream import router as chat_stream_router
 from app.api.agent import router as agent_router
 from app.api.media import router as media_router
 
@@ -166,6 +167,7 @@ app.include_router(chunks_router, prefix="/api/chunks", tags=["chunks"], depende
 app.include_router(vector_router, prefix="/api/vector", tags=["vector"], dependencies=_PROTECTED)
 app.include_router(retrieval_router, prefix="/api/retrieval", tags=["retrieval"], dependencies=_PROTECTED)
 app.include_router(chat_router, prefix="/api/rag", tags=["rag-chat"], dependencies=_PROTECTED)
+app.include_router(chat_stream_router, prefix="/api/chat", tags=["chat"], dependencies=_PROTECTED)
 app.include_router(agent_router, prefix="/api/agent", tags=["agent"], dependencies=_PROTECTED)
 app.include_router(media_router, prefix="/api/media", tags=["media"], dependencies=_PROTECTED)
 
